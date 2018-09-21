@@ -50,4 +50,17 @@
   控制台输入 java -XX:+PrintFlagsFinal -version | grep HeapSize
 8.查看栈的默认值
   java -XX:+PrintFlagsFinal -version | grep ThreadStackSize
+9.直接内存
+  (1)直接内存不是jvm运行时数据区的一部分,也不是java虚拟机规范中的内存区域。DirectByteBuffer对象对对外内存的引用进行操作。
+     因为避免了在java堆和native堆中来回复制数据。
+  (2)直接内存分配不会受到java堆大小的限制,受到本机总内存大小的限制。
+  (3)直接内存和堆内存比较
+     直接内存申请空间耗费更高的性能
+     直接内存io读写的性能要优于普通的堆内存
+  (4)数据流
+     非直接内存:本地io -> 直接内存 -> 堆内存 -> 直接内存 -> 本地io
+     直接内存:本地io -> 直接内存 -> 本地io
+  (5)使用场景
+     有很大的数据需要存储,他的声明周期很长
+     适合频繁的io操作,例如网络并发场景
 推荐阅读地址:https://www.cnblogs.com/ibelieve618/p/6380328.html
