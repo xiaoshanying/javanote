@@ -113,5 +113,8 @@
      在切换时的一些寄存器值、变量等，以便内核态调用结束后切换回用户态继续工作。
      <1>如果线程状态切换是一个高频操作,这将会消耗很多cpu的处理时间。
      <2>如果对于那些需要同步的简单的代码块,获取锁挂起操作消耗的时间比用户代码执行的时间还要长。
+  (2)java对象结构 https://blog.csdn.net/zqz_zqz/article/details/70246212
+7.final https://blog.csdn.net/CT_forever/article/details/77043852
+
 
 
