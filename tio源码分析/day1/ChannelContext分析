@@ -1,0 +1,193 @@
+ChannelContext分析
+作用:连接对象
+一.属性分析
+1.DEFAULT_ATTUBITE_KEY
+2.UNKNOWN_ADDRESS_IP 常量
+3.UNKNOWN_ADDRESS_PORT_SEQ
+4.isTraceClient bool 是否追踪客户端
+5.isTraceSynPacket bool 是否追踪同步包
+6.isReconnect bool 是否重连
+7.packetNeededLength 一个packet所需要的字节数（用于应用告诉框架，下一次解码所需要的字节长度，省去冗余解码带来的性能损耗）
+8.groupContext 组上下文对象GroupContext(一个组里边可以有多个连接)
+9.decodeRunnable
+  <1>解码任务对象
+  <2>实现了Runnable作为一个可提交的线程任务
+  <3>handler(ChannelContext channelContext, Packet packet, int byteCount)方法
+
+     public static void handler(ChannelContext channelContext, Packet packet, int byteCount) {
+            //获取连接的租对象
+     		GroupContext groupContext = channelContext.getGroupContext();
+     		//获取当前组包的处理模式,单线程处理编码和解码,还是丢到线程池处理
+     		PacketHandlerMode packetHandlerMode = groupContext.getPacketHandlerMode();
+            //获取处理的任务对象
+     		HandlerRunnable handlerRunnable = channelContext.getHandlerRunnable();
+     		if (packetHandlerMode == PacketHandlerMode.QUEUE) {
+     		    //模式为线程池处理
+     			handlerRunnable.addMsg(packet);
+     			groupContext.getTioExecutor().execute(handlerRunnable);
+     		} else {
+     		    //单线程处理
+     			handlerRunnable.handler(packet);
+     		}
+     	}
+  <4>ChannelContext channelContext 处理的连接对象,作为构造参数初始化
+  <5>ByteBuffer lastByteBuffer 上一次解码剩下的数据
+  <6>ByteBuffer newByteBuffer 新收到的数据
+  <7>方法clearMsgQueue()
+     public void clearMsgQueue() {
+     		lastByteBuffer = null;
+     		newByteBuffer = null;
+     	}
+  <8>run方法,执行具体业务
+      @Override
+      	public void run() {
+      	    //新收到的数据
+      		ByteBuffer byteBuffer = newByteBuffer;
+      		if (byteBuffer != null) {
+      			if (lastByteBuffer != null) {
+      			    //如果有剩余的数据,将剩余的和新来的数据的可读部分组合到一起
+      				byteBuffer = ByteBufferUtils.composite(lastByteBuffer, byteBuffer);
+      				//上次剩余的数据清空
+      				lastByteBuffer = null;
+      			}
+      		} else {
+      			return;
+      		}
+
+      		label_2: while (true) {
+      		    //获取连接的组对象
+      			GroupContext groupContext = channelContext.getGroupContext();
+      			try {
+      			    //获取数据的position起始位
+      				int initPosition = byteBuffer.position();
+      				//数据的有效位
+      				int limit = byteBuffer.limit();
+      				//可以读取的数据
+      				int readableLength = limit - initPosition;
+      				Packet packet = null;
+      				//获取包所需要的字节数
+      				Integer packetNeededLength = channelContext.getPacketNeededLength();
+      				if (packetNeededLength != null) {
+      					log.info("{}, 解码所需长度:{}", channelContext, packetNeededLength);
+      					if (readableLength >= packetNeededLength) {
+                            //根据ByteBuffer解码成业务需要的Packet对象.
+      						packet = groupContext.getAioHandler().decode(byteBuffer, limit, initPosition, readableLength, channelContext);
+      					}
+      				} else {
+      					packet = groupContext.getAioHandler().decode(byteBuffer, limit, initPosition, readableLength, channelContext);
+      				}
+
+      				if (packet == null)// 数据不够，解不了码
+      				{
+      				    //数据放到解码剩下的缓冲区中
+      					lastByteBuffer = ByteBufferUtils.copy(byteBuffer, initPosition, limit);
+      					//通道状态
+      					ChannelStat channelStat = channelContext.stat;
+      					//解码失败次数加1
+      					int decodeFailCount = channelStat.getDecodeFailCount() + 1;
+      					channelStat.setDecodeFailCount(decodeFailCount);
+      //				//int len = byteBuffer.limit() - initPosition;
+      					log.debug("{} 本次解码失败, 已经连续{}次解码失败，参与解码的数据长度共{}字节", channelContext, decodeFailCount, readableLength);
+      					if (decodeFailCount > 5) {
+      						if (packetNeededLength == null) {
+      							log.info("{} 本次解码失败, 已经连续{}次解码失败，参与解码的数据长度共{}字节", channelContext, decodeFailCount, readableLength);
+      						}
+
+      						//检查慢包攻击（只有自用版才有）
+      						if (decodeFailCount > 10) {
+      							int capacity = lastByteBuffer.capacity();
+      							int per = capacity / decodeFailCount;
+      							if (per < Math.min(groupContext.getReadBufferSize() / 2, 256)) {
+      								throw new AioDecodeException("连续解码" + decodeFailCount + "次都不成功，并且平均每次接收到的数据为" + per + "字节，有慢攻击的嫌疑");
+      							}
+      						}
+      					}
+      					return;
+      				} else //解码成功
+      				{
+      				    //设置一个packet所需要的字节数为null
+      					channelContext.setPacketNeededLength(null);
+      					//最近一次收到业务消息包的时间(一个完整的业务消息包，一部分消息不算)
+      					channelContext.stat.setLatestTimeOfReceivedPacket(SystemTimer.currentTimeMillis());
+                        //失败次数置为0
+      					ChannelStat channelStat = channelContext.stat;
+      					channelStat.setDecodeFailCount(0);
+
+      					int afterDecodePosition = byteBuffer.position();
+      					int len = afterDecodePosition - initPosition;
+      					packet.setByteCount(len);
+                        //接收到的消息包增加
+      					groupContext.getGroupStat().getReceivedPackets().incrementAndGet();
+      					channelContext.stat.getReceivedPackets().incrementAndGet();
+
+                        //ip监控相关
+      					List<Long> list = groupContext.ipStats.durationList;
+      					if (list != null && list.size() > 0) {
+      						try {
+      							for (Long v : list) {
+      								IpStat ipStat = groupContext.ipStats.get(v, channelContext.getClientNode().getIp());
+      								ipStat.getReceivedPackets().incrementAndGet();
+      								groupContext.getIpStatListener().onAfterDecoded(channelContext, packet, len, ipStat);
+      							}
+      						} catch (Exception e1) {
+      							log.error(packet.logstr(), e1);
+      						}
+      					}
+      					//设置探测
+      					channelContext.traceClient(ChannelAction.RECEIVED, packet, null);
+                        //获取监听器
+      					AioListener aioListener = channelContext.getGroupContext().getAioListener();
+      					try {
+      						if (log.isDebugEnabled()) {
+      							log.debug("{} 收到消息 {}", channelContext, packet.logstr());
+      						}
+      						//解码之后触发的事件
+      						aioListener.onAfterDecoded(channelContext, packet, len);
+      					} catch (Throwable e) {
+      						log.error(e.toString(), e);
+      					}
+
+      					if (log.isDebugEnabled()) {
+      						log.debug("{}, 解包获得一个packet:{}", channelContext, packet.logstr());
+      					}
+      					//处理包
+      					handler(channelContext, packet, len);
+
+      					int remainingLength = byteBuffer.limit() - byteBuffer.position();
+      					if (remainingLength > 0)//组包后，还剩有数据
+      					{
+      						if (log.isDebugEnabled()) {
+      							log.debug("{},组包后，还剩有数据:{}", channelContext, remainingLength);
+      						}
+      						continue label_2;
+      					} else//组包后，数据刚好用完
+      					{
+      						lastByteBuffer = null;
+      						log.debug("{},组包后，数据刚好用完", channelContext);
+      						return;
+      					}
+      				}
+      			} catch (Throwable e) {
+      				channelContext.setPacketNeededLength(null);
+      				log.error(channelContext + ", " + byteBuffer + ", 解码异常:" + e.toString(), e);
+
+      				if (e instanceof AioDecodeException) {
+      					List<Long> list = groupContext.ipStats.durationList;
+      					if (list != null && list.size() > 0) {
+      						try {
+      							for (Long v : list) {
+      								IpStat ipStat = groupContext.ipStats.get(v, channelContext.getClientNode().getIp());
+      								ipStat.getDecodeErrorCount().incrementAndGet();
+      								channelContext.getGroupContext().getIpStatListener().onDecodeError(channelContext, ipStat);
+      							}
+      						} catch (Exception e1) {
+      							log.error(e1.toString(), e1);
+      						}
+      					}
+      				}
+
+      				Aio.close(channelContext, e, "解码异常:" + e.getMessage());
+      				return;
+      			}
+      		}
+      	}
