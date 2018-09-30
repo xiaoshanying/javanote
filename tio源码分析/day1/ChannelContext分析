@@ -191,3 +191,5 @@ ChannelContext分析
       			}
       		}
       	}
+      byteBuffer.flip() 也就是说调用flip之后，读写指针指到缓存头部，并且设置了最多只能读出之前写入的数据长度(而不是整个缓存的容量大小)。
+      通过buffer.flip();这个语句，就能把buffer的当前位置更改为buffer缓冲区的第一个位置。
