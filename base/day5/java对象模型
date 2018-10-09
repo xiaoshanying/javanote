@@ -15,5 +15,22 @@ Java对象模型 oop-klass、对象头
 2.klass
   (1)klass存在于方法区，代表着类的基本信息。当类A加载时JVM会在方法区创建一个对应的AKlass对象,当a对象被创建时，在
      堆中创建aOopInstance对象,oop的对象头中的meta_data存储着指向AKlass的指针。
+  (2)一个java类对应有一个class对象,创建这个对象同样会在堆中创建一个被称为 类名KlassOop对象,他的meta_data的指针
+     会指向方法区中的KlassKlass对象.
 
+3.词语解释 https://blog.csdn.net/w372426096/article/details/81167669
+  (1)OOP:普通对象指针,标识一个实例信息
+  (2)Klass:描述对象实例的具体类型,包含了元数据和方法信息
+  (3)oop-klass创建目的:不想让每个对象中都含有一个vtable(虚函数表)
 
+4.内存存储
+  对象的实例保存在堆上,对象的元数据保存在方法区,对象的引用保存在栈上。
+5.总结
+  在Java中，JVM中的对象模型包含两部分：Oop和Klass，在类被加载的时候，JVM会给类创建一个instanceKlass，其中包含了类信息、
+  常量、静态变量、即时编译器编译后的代码等，存储在方法区，用来在JVM层表示该Java类。而使用new一个对象后，JVM就会创建一个instanceOopDesc对象，
+  该对象包含对象头和实例数据，对象头中保存的是锁的状态标志等信息，元数据则实际上是一个指针，指向instanceKlass。
+6.对象头(mark word)
+  (1)存储对象自身的运行时数据.(hashcode,gc分代,线程持有的锁,偏向线程id,偏向时间戳)32或者64
+  (2)对象的指针类型
+  (3)对象自身的示例数据
+  (4)填充
