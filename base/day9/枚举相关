@@ -1,0 +1,167 @@
+枚举的用法、枚举与单例、Enum类
+一.枚举的用法
+  1.常量
+    public enum Color{
+        RED,GREEN,BLANK,YELLOW
+    }
+  2.switch
+    enum Signal{
+        GREEN,YELLOW,RED
+    }
+
+    public class TrafficLight{
+        Signal color = Signal.RED;
+            public void change() {
+                switch (color) {
+                case RED:
+                    color = Signal.GREEN;
+                    break;
+                case YELLOW:
+                    color = Signal.RED;
+                    break;
+                case GREEN:
+                    color = Signal.YELLOW;
+                    break;
+                }
+            }
+    }
+  3.枚举实现接口
+    public interface IBehaviour {
+
+        void print();
+
+        String getInfo();
+
+    }
+
+    public class Color {
+
+        enum ColorEnum implements IBehaviour {
+            RED("红色", 1),
+            YELLOW("黄色", 2);
+
+            private String name;
+
+            private int index;
+
+            private ColorEnum(String name, int index) {
+                this.name = name;
+                this.index = index;
+            }
+
+            @Override
+            public void print() {
+                System.out.println("current is:" + this.name + "," + this.index);
+            }
+
+            @Override
+            public String getInfo() {
+                return "当前颜色是:" + this.name;
+            }
+        }
+
+        public static void main(String[] args) {
+            ColorEnum read = ColorEnum.RED;
+            read.print();
+            System.out.println(read.getInfo());
+        }
+
+    }
+
+  4.使用接口组织枚举
+    public interface Food {
+
+        enum Fruit implements Food {
+            APPLE,
+            ORANGE,
+            PETCH
+        }
+
+
+        enum MEET implements Food {
+            BEE,
+            FISH
+        }
+
+    }
+
+    public class FoodFactory {
+
+        public static void main(String[] args) {
+            Food apple = Food.Fruit.APPLE;
+            System.out.println(apple);
+        }
+
+    }
+
+二.枚举与单例 参考https://blog.csdn.net/nsw911439370/article/details/50456231
+   https://blog.csdn.net/gavin_dyson/article/details/70832185
+
+   下面我们用一个枚举实现单个数据源例子来简单验证一下：
+   声明一个枚举，用于获取数据库连接。
+
+   public enum DataSourceEnum {
+       DATASOURCE;
+       private DBConnection connection = null;
+       private DataSourceEnum() {
+           connection = new DBConnection();
+       }
+       public DBConnection getConnection() {
+           return connection;
+       }
+   }  
+
+   模拟一个数据库连接类：
+
+   public class DBConnection {} 
+
+   测试通过枚举获取的实例是否相同：
+
+    public class Main {
+       public static void main(String[] args) {
+           DBConnection con1 = DataSourceEnum.DATASOURCE.getConnection();
+           DBConnection con2 = DataSourceEnum.DATASOURCE.getConnection();
+           System.out.println(con1 == con2);
+       }
+   }
+
+   就拿枚举来说，其实Enum就是一个普通的类，它继承自java.lang.Enum类。
+
+   public enum DataSourceEnum {
+       DATASOURCE;
+   }
+
+   把上面枚举编译后的字节码反编译，得到的代码如下：
+
+   public final class DataSourceEnum extends Enum<DataSourceEnum> {
+         public static final DataSourceEnum DATASOURCE;
+         public static DataSourceEnum[] values();
+         public static DataSourceEnum valueOf(String s);
+         static {};
+   }
+
+   虚拟机会保证一个类的<clinit>() 方法在多线程环境中被正确的加锁、同步。所以，枚举实现是在实例化时是线程安全。
+
+   Java规范中规定，每一个枚举类型极其定义的枚举变量在JVM中都是唯一的，因此在枚举类型的序列化和反序列化上，Java做了特殊的规定。
+   在序列化的时候Java仅仅是将枚举对象的name属性输出到结果中，反序列化的时候则是通过 java.lang.Enum 的 valueOf() 方法来根据名字查找枚举对象。
+   也就是说，以下面枚举为例，序列化的时候只将 DATASOURCE 这个名称输出，反序列化的时候再通过这个名称，查找对于的枚举类型，因此反序列化后的实例也会和之前被序列化的对象实例相同。
+
+三.Enum类
+   https://blog.csdn.net/qq_31655965/article/details/55049192
+
+   public enum ColorEnum {
+
+       RED, GREEN, YELLOW
+
+   }
+
+   javap之后可以看出来enum其实是一个不可继承的类
+
+   public final class enums.ColorEnum extends java.lang.Enum<enums.ColorEnum> {
+     public static final enums.ColorEnum RED;
+     public static final enums.ColorEnum GREEN;
+     public static final enums.ColorEnum YELLOW;
+     public static enums.ColorEnum[] values();
+     public static enums.ColorEnum valueOf(java.lang.String);
+     static {};
+   }
