@@ -906,3 +906,7 @@ cat /proc/pid/status
    sudo systemsetup -getremotelogin on
    如果要关闭
    sudo systemsetup -getremotelogin off
+93.docker搭建gitlab
+   https://www.jb51.net/article/137741.htm
+94.gradle配置讲解
+   https://blog.csdn.net/shuizhihun07/article/details/80164460?utm_source=blogxgwz1

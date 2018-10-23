@@ -23,7 +23,44 @@ HashSet & LinkedHashSet & TreeSet
          }
 3.Long https://www.jb51.net/article/127763.htm
 4.Enum https://blog.csdn.net/javazejian/article/details/71333103
-
+5.BigDecimal
+6.ThreadLocal
+  参考链接:https://www.cnblogs.com/micrari/p/6790229.html
+  参考链接:http://www.cnblogs.com/dolphin0520/p/3920407.html
+7.ClassLoader & URLClassLoader
+8.concurrentHashMap 1.8解析
+  https://blog.csdn.net/fouy_yun/article/details/77816587
+9.JDK 6和JDK 7中substring的原理及区别、https://www.cnblogs.com/dsitn/p/7151624.html
+   jdk6的substring创建一个新的string对象,但是这个string的值仍然指向堆中的同一个字符数组。这两个对象中只有
+   count和offset不同。因为还引用着之前的字符数组,假如之前的非常大的话,就可能会导致内存泄漏。
+   jdk7中,substring会在堆内存中创建一个新的数组.
+10.replaceFirst、replaceAll、replace区别、https://www.cnblogs.com/klqmg/p/6230047.html
+   String s = "my.test.txt";
+   System.out.println(s.replace(".", "#"));
+   System.out.println(s.replaceAll(".", "#"));
+   System.out.println(s.replaceFirst(".", "#"));
+   运行结果:
+   my#test#txt
+   ###########
+   #y.test.txt
+   replace没有用到正则表达式
+   replaceAll跟replaceFirst用到了正则表达式
+   那我不想用正则表达式去替换第一个字符串肿么办？”其实也很简单，只要将元字符串转义就行了。
+   s.replaceFirst("\\.", "#")
+11.String 对+号的重载
+  https://blog.csdn.net/codejas/article/details/78662146
+12.String.valueOf和Integer.toString的区别、
+   https://blog.csdn.net/a281246240/article/details/48969217
+13.字符串的不可变性
+   https://www.cnblogs.com/qingergege/p/5701011.html
+14.自动拆装箱 https://blog.csdn.net/qq_40919170/article/details/79193688
+   (1)自动装箱就是Java自动将原始类型值转换成对应的对象，比如将int的变量转换成Integer对象，这个过程叫做装箱，反之将Integer对象转换成int类型值，这个过程叫做拆箱。
+15.Integer缓存机制 https://blog.csdn.net/losetowin/article/details/49968365
+16.transient 用transient关键字标记的成员变量不参与序列化过程。
+17.instanceof
+   java 中的instanceof 运算符是用来在运行时指出对象是否是特定类的一个实例。instanceof通过返回一个布尔值来指出，这个对象是否是这个特定类或者是它的子类的一个实例。
+   用法：
+   result = object instanceof class
 
 
 
